@@ -1,6 +1,7 @@
 package icapclient
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -73,6 +74,67 @@ func (t *transport) write(data []byte) (int, error) {
 	return t.sckt.Write(data)
 }
 
+type readingState int64 //states for reading "Encapsulated" header value
+
+const (
+	Identifier readingState = iota
+	Number
+)
+
+func isLetter(c rune) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+}
+
+func isNumber(c rune) bool {
+	return ('0' <= c && c <= '9')
+}
+
+func findLastSectionStart(str []byte) int {
+	encapsulatedPos := strings.Index(string(str), EncapsulatedHeader)
+	maxNum := 0
+	s := bytes.Runes(str)
+	if encapsulatedPos < 0 {
+		return 0
+	}
+
+	st := Identifier
+	num := 0
+	for i := encapsulatedPos + len(EncapsulatedHeader) + 1; i < len(s); i++ {
+		if s[i] == ' ' || s[i] == '\t' {
+			continue
+		}
+		if s[i] == '\r' { //ending of Encapsulated header line
+			break
+		}
+		switch st {
+		case Identifier:
+			if s[i] == '=' {
+				st = Number
+				num = 0
+			} else if !(isLetter(s[i]) || s[i] == '-') {
+				logDebug("identifier followed by ", s[i])
+				return 0
+			}
+		case Number:
+			if isNumber(s[i]) {
+				num = num*10 + int(s[i]-'0')
+			} else if s[i] == ',' {
+				st = Identifier
+				if num > maxNum {
+					maxNum = num
+				}
+			} else {
+				logDebug("number followed by ", s[i])
+				return 0
+			}
+		default:
+			logDebug("undefined reading state")
+			return 0
+		}
+	}
+	return maxNum
+}
+
 // Read reads data from server
 func (t *transport) read() (string, error) {
 
@@ -99,29 +161,19 @@ func (t *transport) read() (string, error) {
 		}
 
 		data = append(data, tmp[:n]...)
-		if n < MaxReadSocketLength {
-			logDebug("Read everything from socket")
-			break
-		}
-		if string(data) == icap100ContinueMsg { // explicitly breaking because the Read blocks for 100 continue message // TODO: find out why
-			logDebug("Stopping because got 100 Continue from the server")
-			break
+		expectedLength := findLastSectionStart(tmp) // this is the beginning of last section in file
+		// sections are separated with `\r\n\r\n` (DoubleCRLF)
+		if len(data) < expectedLength {
+			dumpDebug(string(tmp))
+			continue
 		}
 
-		if strings.HasSuffix(string(data), "0\r\n\r\n") {
-			logDebug("End of the file detected by 0 Double CRLF indicator")
+		if strings.HasSuffix(string(data), DoubleCRLF) {
+			logDebug("End of the file detected by Double CRLF indicator")
 			break
 		}
-
-		if strings.Contains(string(data), icap204NoModsMsg) {
-			logDebug("End of file detected by 204 no modifications and Double CRLF at the end")
-			break
-		}
-
-		dumpDebug(string(tmp))
 
 	}
-
 	return string(data), nil
 }
 
