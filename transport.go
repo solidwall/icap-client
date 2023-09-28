@@ -141,11 +141,13 @@ func (t *transport) read() (string, error) {
 	data := make([]byte, 0)
 
 	logDebug("Dumping messages received from the server...")
+	var err error
 
 	for {
 		tmp := make([]byte, MaxReadSocketLength)
 
-		n, err := t.sckt.Read(tmp)
+		var n int
+		n, err = t.sckt.Read(tmp)
 
 		if err != nil {
 			if err == io.EOF {
@@ -174,7 +176,7 @@ func (t *transport) read() (string, error) {
 		}
 
 	}
-	return string(data), nil
+	return string(data), err
 }
 
 // close closes the tcp connection
