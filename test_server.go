@@ -7,18 +7,14 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/egirna/icap"
 )
 
 var (
-	stop = make(chan os.Signal, 1)
 	port = 1344
 )
 
@@ -36,8 +32,6 @@ func startTestServer() {
 
 	log.Println("Starting ICAP test server...")
 
-	signal.Notify(stop, syscall.SIGKILL, syscall.SIGINT, syscall.SIGQUIT)
-
 	go func() {
 		if err := icap.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 			log.Println("Failed to start ICAP test server: ", err.Error())
@@ -48,13 +42,6 @@ func startTestServer() {
 	time.Sleep(5 * time.Millisecond)
 
 	log.Printf("ICAP test server is running on localhost:%d\n...\n", port)
-	<-stop
-
-	log.Println("ICAP test server is shut down!")
-}
-
-func stopTestServer() {
-	stop <- syscall.SIGKILL
 }
 
 func respmodHandler(w icap.ResponseWriter, req *icap.Request) {

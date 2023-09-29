@@ -578,8 +578,4 @@ func TestClient(t *testing.T) {
 
 		}
 	})
-
-	if testServerRunning() {
-		defer stopTestServer()
-	}
 }
