@@ -52,10 +52,11 @@ func (r *Request) SetPreview(maxBytes int) error {
 
 	previewBytes = len(bodyBytes)
 
-	if previewBytes > 0 { // if the preview byte is 0 or less, there is no question of the body fitting insides
-		r.bodyFittedInPreview = true
+	if previewBytes <= 0 { // if the preview byte is 0 or less, there is no question of the body fitting insides
+		return nil
 	}
 
+	r.bodyFittedInPreview = true
 	if previewBytes > maxBytes { // if the preview bytes is greater than what was mentioned by the ICAP Server(did not fit in the body)
 		previewBytes = maxBytes
 		r.bodyFittedInPreview = false
