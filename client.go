@@ -12,7 +12,7 @@ type Client struct {
 	Timeout    time.Duration
 }
 
-// Do makes  does everything required to make a call to the ICAP server
+// Do does everything required to make a call to the ICAP server
 func (c *Client) Do(req *Request) (*Response, error) {
 
 	if c.scktDriver == nil { // create a new socket driver if one wasn't explicitly created
@@ -59,7 +59,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 		return nil, err
 	}
 
-	if resp.StatusCode == http.StatusContinue && !req.bodyFittedInPreview && req.previewSet { // this block suggests that the ICAP request contained preview body bytes and whole body did not fit in the preview, so the serber responded with 100 Continue and the client is to send the remaining body bytes only
+	if resp.StatusCode == http.StatusContinue && !req.bodyFittedInPreview && req.previewSet { // this block suggests that the ICAP request contained preview body bytes and whole body did not fit in the preview, so the server responded with 100 Continue and the client is to send the remaining body bytes only
 		logDebug("Making request for the rest of the remaining body bytes after preview, as received 100 Continue from the server...")
 		return c.DoRemaining(req)
 	}
@@ -72,7 +72,7 @@ func (c *Client) DoRemaining(req *Request) (*Response, error) {
 
 	data := req.remainingPreviewBytes
 
-	if !bodyAlreadyChunked(string(data)) { // if the body is not already chunke, then add the basic hexa body bytes notation
+	if !bodyAlreadyChunked(string(data)) { // if the body is not already chunked, then add the basic hexa body bytes notation
 		ds := string(data)
 		addHexaBodyByteNotations(&ds)
 		data = []byte(ds)

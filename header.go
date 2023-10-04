@@ -95,6 +95,7 @@ func (r *Request) SetDefaultRequestHeaders() {
 }
 
 // ExtendHeader extends the current ICAP Request header with a new header
+// NOTE used for tests only
 func (r *Request) ExtendHeader(hdr http.Header) error {
 	for header, values := range hdr {
 

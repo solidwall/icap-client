@@ -49,6 +49,7 @@ func setEncapsulatedHeaderValue(icapReqStr *string, httpReqStr, httpRespStr stri
 		if httpReqStr == "" && httpRespStr == "" { // the most common case for OPTIONS method, no Encapsulated body
 			encpVal += "null-body=0"
 		} else {
+			logDebug("Should not have body for OPTIONS request!")
 			encpVal += "opt-body=0" // if there is an Encapsulated body
 		}
 	}
