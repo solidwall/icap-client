@@ -3,6 +3,7 @@ package icapclient
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,16 +46,14 @@ func ReadResponse(b *bufio.Reader) (*Response, error) {
 					return nil, err
 				}
 				continue
-			}
-
-			if ss[0] == HTTPVersion {
+			} else if ss[0] == HTTPVersion {
 				scheme = SchemeHTTPResp
 				httpMsg = ""
-			}
-
-			if strings.TrimSpace(ss[2]) == HTTPVersion { // for a http request message if the scheme version is always at last, for example: GET /something HTTP/1.1
+			} else if strings.TrimSpace(ss[2]) == HTTPVersion { // for a http request message if the scheme version is always at last, for example: GET /something HTTP/1.1
 				scheme = SchemeHTTPReq
 				httpMsg = ""
+			} else {
+				return nil, fmt.Errorf("Failed to parse request line (unsupported protocol): %s", currentMsg)
 			}
 		}
 
