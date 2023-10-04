@@ -96,9 +96,13 @@ func replaceRequestURIWithActualURL(str *string, uri, url string) {
 	*str = strings.Replace(*str, uri, url, 1)
 }
 
-// addFullBodyInPreviewIndicator adds 0; ieof\r\n\r\n which indicates the entire body fitted in preview
+// addFullBodyInPreviewIndicator adds `; ieof\r\n\r\n` which indicates the entire body fitted in preview
 func addFullBodyInPreviewIndicator(str *string) {
-	*str = strings.TrimSuffix(*str, DoubleCRLF)
+	*str = strings.Trim(*str, CRLF)
+	if !strings.HasSuffix(*str, "0") {
+		*str += DoubleCRLF
+		return
+	}
 	*str += fullBodyEndIndicatorPreviewMode
 }
 
