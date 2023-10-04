@@ -132,11 +132,11 @@ func TestParser(t *testing.T) {
 		sampleTable := []testSample{
 			{
 				msg:    "Hello World!",
-				result: "c\r\nHello World!\r\n0\r\n",
+				result: "c\r\nHello World!\r\n0\r\n\r\n",
 			},
 			{
 				msg:    "This is another message. Alright bye!",
-				result: "25\r\nThis is another message. Alright bye!\r\n0\r\n",
+				result: "25\r\nThis is another message. Alright bye!\r\n0\r\n\r\n",
 			},
 		}
 
