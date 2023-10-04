@@ -159,21 +159,3 @@ func addHexaBodyByteNotations(bodyStr *string) {
 func mergeHeaderAndBody(src *string, headerStr, bodyStr string) {
 	*src = headerStr + DoubleCRLF + bodyStr
 }
-
-func chunkBodyByBytes(bdyByte []byte, cl int) []byte {
-
-	newBytes := []byte{}
-
-	for i := 0; i < len(bdyByte); i += cl {
-		end := i + cl
-		if end > len(bdyByte) {
-			end = len(bdyByte)
-		}
-
-		newBytes = append(newBytes, []byte(fmt.Sprintf("%x\r\n", len(bdyByte[i:end]))+string(bdyByte[i:end]))...)
-	}
-
-	newBytes = append(newBytes, []byte(bodyEndIndicator)...)
-
-	return newBytes
-}

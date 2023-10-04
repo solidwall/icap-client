@@ -18,23 +18,6 @@ type Response struct {
 	ContentResponse *http.Response
 }
 
-var (
-	optionValues = map[string]bool{
-		PreviewHeader:          true,
-		MethodsHeader:          true,
-		AllowHeader:            true,
-		TransferPreviewHeader:  true,
-		ServiceHeader:          true,
-		ISTagHeader:            true,
-		OptBodyTypeHeader:      true,
-		MaxConnectionsHeader:   true,
-		OptionsTTLHeader:       true,
-		ServiceIDHeader:        true,
-		TransferIgnoreHeader:   true,
-		TransferCompleteHeader: true,
-	}
-)
-
 // ReadResponse converts a Reader to a icapclient Response
 func ReadResponse(b *bufio.Reader) (*Response, error) {
 
