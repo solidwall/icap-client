@@ -114,7 +114,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ := NewRequest(MethodOPTIONS, "icap://localhost:1344/something", nil, nil)
 
-		b, err := DumpRequest(req)
+		b, err := DumpRequest(req, false)
 
 		if err != nil {
 			t.Fatal(err.Error())
@@ -137,7 +137,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ := NewRequest(MethodREQMOD, "icap://localhost:1344/something", httpReq, nil)
 
-		b, err := DumpRequest(req)
+		b, err := DumpRequest(req, true)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -160,7 +160,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ = NewRequest(MethodREQMOD, "icap://localhost:1344/something", httpReq, nil)
 
-		b, err = DumpRequest(req)
+		b, err = DumpRequest(req, true)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -168,6 +168,30 @@ func TestRequest(t *testing.T) {
 		wanted = "REQMOD icap://localhost:1344/something ICAP/1.0\r\n" +
 			"Encapsulated:  req-hdr=0, req-body=130\r\n\r\n" +
 			"POST http://someurl.com HTTP/1.1\r\n" +
+			"Host: someurl.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 11\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n" +
+			"b\r\n" +
+			"Hello World\r\n" +
+			"0\r\n\r\n"
+
+		got = string(b)
+
+		if wanted != got {
+			t.Logf("wanted: \n%s\ngot: \n%s\n", wanted, got)
+			t.Fail()
+		}
+
+		// check how relative URL mode works
+		b, err = DumpRequest(req, false)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		wanted = "REQMOD icap://localhost:1344/something ICAP/1.0\r\n" +
+			"Encapsulated:  req-hdr=0, req-body=113\r\n\r\n" +
+			"POST / HTTP/1.1\r\n" +
 			"Host: someurl.com\r\n" +
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 11\r\n" +
@@ -203,7 +227,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ := NewRequest(MethodRESPMOD, "icap://localhost:1344/something", httpReq, httpResp)
 
-		b, err := DumpRequest(req)
+		b, err := DumpRequest(req, true)
 		if err != nil {
 			t.Fatal(err.Error())
 		}

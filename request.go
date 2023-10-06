@@ -52,7 +52,7 @@ func NewRequest(method, urlStr string, httpReq *http.Request, httpResp *http.Res
 
 // DumpRequest returns the given request in its ICAP/1.x wire
 // representation.
-func DumpRequest(req *Request) ([]byte, error) {
+func DumpRequest(req *Request, setAbsoluteUrl bool) ([]byte, error) {
 
 	// Making the ICAP message block
 
@@ -77,8 +77,19 @@ func DumpRequest(req *Request) ([]byte, error) {
 			return nil, err
 		}
 
-		httpReqStr += string(b)
-		replaceRequestURIWithActualURL(&httpReqStr, req.HTTPRequest.URL.EscapedPath(), req.HTTPRequest.URL.String())
+		httpReqStr = string(b)
+		if setAbsoluteUrl {
+			partsHttp := strings.SplitN(httpReqStr, "\n", 2)
+			if len(partsHttp) < 2 {
+				return []byte{}, fmt.Errorf("Failed to parse dumped HTTPRequest: %s", httpReqStr)
+			}
+			headerLineParts := strings.Split(partsHttp[0], " ")
+			if len(headerLineParts) != 3 {
+				return []byte{}, fmt.Errorf("Incorrect HTTP header line: %s", partsHttp[0])
+			}
+			newHeaderLine := headerLineParts[0] + " " + req.HTTPRequest.URL.String() + " " + headerLineParts[2]
+			httpReqStr = newHeaderLine + "\n" + partsHttp[1]
+		}
 
 		if req.Method == MethodREQMOD {
 			if req.previewSet {

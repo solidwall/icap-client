@@ -8,8 +8,9 @@ import (
 
 // Client represents the icap client who makes the icap server calls
 type Client struct {
-	scktDriver *Driver
-	Timeout    time.Duration
+	scktDriver     *Driver
+	Timeout        time.Duration
+	SetAbsoluteUrl bool // this indicates whether we change sent embedded HTTP request to use absolute URL in request line
 }
 
 // Do does everything required to make a call to the ICAP server
@@ -43,7 +44,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
 	logDebug("The request headers: ")
 	dumpDebug(req.Header)
 
-	d, err := DumpRequest(req) // getting the byte representation of the ICAP request
+	d, err := DumpRequest(req, c.SetAbsoluteUrl) // getting the byte representation of the ICAP request
 
 	if err != nil {
 		return nil, err

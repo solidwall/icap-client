@@ -22,8 +22,7 @@ const (
 	previewBytes      = 24
 	goodFileDetectStr = "GOOD FILE"
 	badFileDetectStr  = "BAD FILE"
-	goodURL           = "http://goodifle.com"
-	badURL            = "http://badfile.com"
+	badHost           = "badfile.com"
 )
 
 func startTestServer() {
@@ -76,10 +75,7 @@ func respmodHandler(w icap.ResponseWriter, req *icap.Request) {
 			return
 		}
 
-		status := 0
-		if strings.Contains(buf.String(), goodFileDetectStr) {
-			status = http.StatusNoContent
-		}
+		status := http.StatusNoContent
 
 		if strings.Contains(buf.String(), badFileDetectStr) {
 			status = http.StatusOK
@@ -113,14 +109,9 @@ func reqmodHandler(w icap.ResponseWriter, req *icap.Request) {
 
 		// log.Println("The preview data: ", string(req.Preview))
 
-		fileURL := req.Request.RequestURI
+		status := http.StatusNoContent
 
-		status := 0
-		if fileURL == goodURL {
-			status = http.StatusNoContent
-		}
-
-		if fileURL == badURL {
+		if req.Request.Host == badHost {
 			status = http.StatusOK
 		}
 
