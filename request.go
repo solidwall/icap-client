@@ -104,6 +104,11 @@ func DumpRequest(req *Request, setAbsoluteUrl bool) ([]byte, error) {
 				}
 			}
 
+		} else { // In case of RESPMOD we send only header (see https://datatracker.ietf.org/doc/html/rfc3507#section-4.9.1)
+			headerStr, _, ok := splitBodyAndHeader(httpReqStr)
+			if ok {
+				httpReqStr = headerStr
+			}
 		}
 
 		if httpReqStr != "" { // if the HTTP Request message block doesn't end with a \r\n\r\n, then going to add one by force for better calculation of byte offsets

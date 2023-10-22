@@ -233,13 +233,12 @@ func TestRequest(t *testing.T) {
 		}
 
 		wanted := "RESPMOD icap://localhost:1344/something ICAP/1.0\r\n" +
-			"Encapsulated:  req-hdr=0, req-body=130, res-hdr=145, res-body=210\r\n\r\n" +
+			"Encapsulated:  req-hdr=0, res-hdr=130, res-body=195\r\n\r\n" +
 			"POST http://someurl.com HTTP/1.1\r\n" +
 			"Host: someurl.com\r\n" +
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 11\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n" +
-			"Hello World\r\n\r\n" +
 			"HTTP/1.0 200 OK\r\n" +
 			"Content-Length: 11\r\n" +
 			"Content-Type: plain/text\r\n\r\n" +
