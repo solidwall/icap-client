@@ -124,3 +124,11 @@ func (r *Request) ExtendHeader(hdr http.Header) error {
 
 	return nil
 }
+
+func filterHopByHop(headers http.Header) {
+	for header := range headers {
+		if _, ok := HopByHopHeaders[header]; ok {
+			headers.Del(header)
+		}
+	}
+}

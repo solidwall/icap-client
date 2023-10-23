@@ -54,4 +54,20 @@ const (
 	ServiceIDHeader        = "Service-ID"
 	TransferIgnoreHeader   = "Transfer-Ignore"
 	TransferCompleteHeader = "Transfer-Complete"
+
+	// Hop-by-hop headers that need to be sent in ICAP headers section if present in request/response
+	// see https://datatracker.ietf.org/doc/html/rfc3507#section-4.4.2
+	ProxyAuthenticateHeader  = "Proxy-Authenticate"
+	ProxyAuthorizationHeader = "Proxy-Authorization"
 )
+
+var HopByHopHeaders = map[string]bool{
+	"Connection":          true,
+	"Keep-Alive":          true,
+	"Proxy-Authenticate":  true,
+	"Proxy-Authorization": true,
+	"Te":                  true,
+	"Trailers":            true,
+	"Transfer-encoding":   true,
+	"Upgrade":             true,
+}

@@ -35,16 +35,41 @@ func NewRequest(method, urlStr string, httpReq *http.Request, httpResp *http.Res
 		return nil, err
 	}
 
+	var httpReqClone *http.Request
+	if httpReq != nil {
+		httpReqClone = httpReq.Clone(context.Background())
+		filterHopByHop(httpReqClone.Header)
+	}
+	var httpRespClone *http.Response
+	if httpResp != nil {
+		httpRespCloneObj := *httpResp
+		httpRespCloneObj.Header = httpResp.Header.Clone()
+		httpRespCloneObj.Trailer = nil
+		httpRespCloneObj.TransferEncoding = nil
+		httpRespClone = &httpRespCloneObj
+		filterHopByHop(httpRespClone.Header)
+	}
 	req := &Request{
 		Method:       method,
 		URL:          u,
 		Header:       make(map[string][]string),
-		HTTPRequest:  httpReq,
-		HTTPResponse: httpResp,
+		HTTPRequest:  httpReqClone,
+		HTTPResponse: httpRespClone,
 	}
 
 	if err := req.Validate(); err != nil {
 		return nil, err
+	}
+
+	if httpReq != nil {
+		if value, ok := httpReq.Header[ProxyAuthorizationHeader]; ok {
+			req.Header[ProxyAuthorizationHeader] = value
+		}
+	}
+	if httpResp != nil {
+		if value, ok := httpResp.Header[ProxyAuthenticateHeader]; ok {
+			req.Header[ProxyAuthenticateHeader] = value
+		}
 	}
 
 	return req, nil
