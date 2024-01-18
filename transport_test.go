@@ -76,13 +76,15 @@ const ResponseReqmod3 = "ICAP/1.0 200 OK\r\r" +
 	"Sorry, you are not allowed to access that naughty content.\r\n" +
 	"0\r\n\r\n"
 
-const ResponseRespmod = "ICAP/1.0 200 OK\r\n" +
+const ResponseRespmodPart1 = "ICAP/1.0 200 OK\r\n" +
 	"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 	"Server: ICAP-Server-Software/1.0\r\n" +
 	"Connection: close\r\n" +
 	"ISTag: \"W3E4R7U9-L2E4-2\"\r\n" +
 	"Encapsulated: res-hdr=0, res-body=222\r\n" +
-	"\r\n" +
+	"\r\n"
+
+const ResponseRespmodPart2 =
 	"HTTP/1.1 200 OK\r\n" +
 	"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 	"Via: 1.0 icap.example.org (ICAP Example RespMod Service 1.1)\r\n" +
@@ -103,7 +105,7 @@ var responseMap = map[string]string{
 	"ResponseReqmod1": ResponseReqmod1,
 	"ResponseReqmod2": ResponseReqmod2,
 	"ResponseReqmod3": ResponseReqmod3,
-	"ResponseRespmod": ResponseRespmod,
+	"ResponseRespmod": ResponseRespmodPart1 + ResponseRespmodPart2,
 }
 
 // Handles incoming requests.
@@ -124,12 +126,20 @@ func handleRequest(conn net.Conn) {
 		data += s
 	}
 	if _, ok := responseMap[data]; ok {
-		conn.Write([]byte(responseMap[data]))
+		response := []byte(responseMap[data])
+		quarter := int(len(response) / 4)
+		conn.Write(response[:quarter])
+		time.Sleep(10 * time.Millisecond)
+		conn.Write(response[quarter:2*quarter])
+		time.Sleep(10 * time.Millisecond)
+		conn.Write(response[2*quarter:3*quarter])
+		time.Sleep(10 * time.Millisecond)
+		conn.Write(response[3*quarter:])
 	}
 	conn.Close()
 }
 
-func startServer(host string, port int) net.Listener {
+func startServer(host string, port int, handler func(net.Conn)) net.Listener {
 	addr := fmt.Sprintf(host+":%d", port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -143,7 +153,7 @@ func startServer(host string, port int) net.Listener {
 				fmt.Println("Server stopped")
 				break
 			}
-			go handleRequest(conn)
+			go handler(conn)
 		}
 	}()
 	return ln
@@ -172,8 +182,8 @@ func getDriver(t *testing.T, host string, port int) *Driver {
 	return driver
 }
 
-func checkResponse(t *testing.T, name string, valid bool) {
-	driver := getDriver(t, "127.0.0.1", 13445)
+func checkResponse(t *testing.T, host string, port int, name string, valid bool) {
+	driver := getDriver(t, host, port)
 	err := driver.Send([]byte(name + CRLF))
 	if err != nil {
 		t.Errorf("Error sending data to server: %s", err.Error())
@@ -191,7 +201,7 @@ func checkResponse(t *testing.T, name string, valid bool) {
 		t.Errorf("Received error for %s: %v", name, err)
 	}
 
-	assert.Equal(t, msg, responseMap[name])
+	assert.Equal(t, responseMap[name], msg)
 	if err := driver.Close(); err != nil {
 		t.Errorf("Driver connection close failed: %s", err.Error())
 	}
@@ -200,11 +210,35 @@ func checkResponse(t *testing.T, name string, valid bool) {
 // TestResponseParsing checks that all typical responses from ICAP server can be read by transport
 // correctly without producing errors
 func TestResponseParsing(t *testing.T) {
-	ln := startServer("127.0.0.1", 13445)
+	ln := startServer("127.0.0.1", 13445, handleRequest)
 
-	for name, _ := range responseMap {
-		checkResponse(t, name, true)
+	for name := range responseMap {
+		checkResponse(t, "127.0.0.1", 13445, name, true)
 	}
-	checkResponse(t, "NotValidResponse", false)
+	checkResponse(t, "127.0.0.1", 13445, "NotValidResponse", false)
 	ln.Close()
+}
+
+// handlerSectionTest returns ResponseRespmod divided into 2 parts by DoubleCRLF
+// (DoubleCRLF without other conditions was mistakenly used as a mark of message ending)
+func handlerSectionTest(conn net.Conn) {
+	conn.Write([]byte(ResponseRespmodPart1))
+	time.Sleep(10 * time.Millisecond)
+	conn.Write([]byte(ResponseRespmodPart2))
+}
+
+// TestAllSectionsProcessed checks that transport:read() doesn't stop processing at DoubleCRLF
+func TestAllSectionsProcessed(t *testing.T) {
+	ln := startServer("127.0.0.1", 13446, handlerSectionTest)
+	checkResponse(t, "127.0.0.1", 13446, "ResponseRespmod", true)
+	ln.Close()
+}
+
+// Test findLastSectionStart
+func TestFindLastSectionStart(t *testing.T) {
+	assert.Equal(t, 0, findLastSectionStart([]byte(ResponseOptions)))
+	assert.Equal(t, 231, findLastSectionStart([]byte(ResponseReqmod1)))
+	assert.Equal(t, 244, findLastSectionStart([]byte(ResponseReqmod2)))
+	assert.Equal(t, 213, findLastSectionStart([]byte(ResponseReqmod3)))
+	assert.Equal(t, 222, findLastSectionStart([]byte(ResponseRespmodPart1)))
 }
