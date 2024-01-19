@@ -145,6 +145,7 @@ func (t *transport) read() (string, error) {
 
 	logDebug("Dumping messages received from the server...")
 	var err error
+	var expectedLength int = -1
 
 	for {
 		tmp := make([]byte, MaxReadSocketLength)
@@ -166,14 +167,11 @@ func (t *transport) read() (string, error) {
 		}
 
 		data = append(data, tmp[:n]...)
-		expectedLength := findLastSectionStart(tmp) // this is the beginning of last section in file
-		// sections are separated with `\r\n\r\n` (DoubleCRLF)
-		if len(data) < expectedLength {
-			dumpDebug(string(tmp))
-			continue
+		if expectedLength == -1 {
+			expectedLength = findLastSectionStart(data) // this is the beginning of last section in file
+			// sections are separated with `\r\n\r\n` (DoubleCRLF)
 		}
-
-		if strings.HasSuffix(string(data), DoubleCRLF) {
+		if len(data) >= expectedLength && strings.HasSuffix(string(data), DoubleCRLF) {
 			logDebug("End of the file detected by Double CRLF indicator")
 			break
 		}
