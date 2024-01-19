@@ -94,7 +94,7 @@ func findLastSectionStart(str []byte) int {
 	maxNum := 0
 	s := bytes.Runes(str)
 	if encapsulatedPos < 0 {
-		return 0
+		return -1
 	}
 
 	st := Identifier
@@ -104,6 +104,9 @@ func findLastSectionStart(str []byte) int {
 			continue
 		}
 		if s[i] == '\r' { //ending of Encapsulated header line
+			if num > maxNum {
+				maxNum = num
+			}
 			break
 		}
 		switch st {
@@ -113,7 +116,7 @@ func findLastSectionStart(str []byte) int {
 				num = 0
 			} else if !(isLetter(s[i]) || s[i] == '-') {
 				logDebug("identifier followed by ", s[i])
-				return 0
+				return -1
 			}
 		case Number:
 			if isNumber(s[i]) {
@@ -125,11 +128,11 @@ func findLastSectionStart(str []byte) int {
 				}
 			} else {
 				logDebug("number followed by ", s[i])
-				return 0
+				return -1
 			}
 		default:
 			logDebug("undefined reading state")
-			return 0
+			return -1
 		}
 	}
 	return maxNum
