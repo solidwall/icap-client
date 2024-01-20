@@ -84,8 +84,7 @@ const ResponseRespmodPart1 = "ICAP/1.0 200 OK\r\n" +
 	"Encapsulated: res-hdr=0, res-body=222\r\n" +
 	"\r\n"
 
-const ResponseRespmodPart2 =
-	"HTTP/1.1 200 OK\r\n" +
+const ResponseRespmodPart2 = "HTTP/1.1 200 OK\r\n" +
 	"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 	"Via: 1.0 icap.example.org (ICAP Example RespMod Service 1.1)\r\n" +
 	"Server: Apache/1.3.6 (Unix)\r\n" +
@@ -99,6 +98,9 @@ const ResponseRespmodPart2 =
 	"0\r\n\r\n"
 
 const NotValidResponse = "Some strange response..."
+
+const EncapsulatedTruncated = "ISTag: \"W3E4R7U9-L2E4-2\"\r\n" +
+	"Encapsulated: res-hdr=0, r"
 
 var responseMap = map[string]string{
 	"ResponseOptions": ResponseOptions,
@@ -127,14 +129,10 @@ func handleRequest(conn net.Conn) {
 	}
 	if _, ok := responseMap[data]; ok {
 		response := []byte(responseMap[data])
-		quarter := int(len(response) / 4)
-		conn.Write(response[:quarter])
-		time.Sleep(10 * time.Millisecond)
-		conn.Write(response[quarter:2*quarter])
-		time.Sleep(10 * time.Millisecond)
-		conn.Write(response[2*quarter:3*quarter])
-		time.Sleep(10 * time.Millisecond)
-		conn.Write(response[3*quarter:])
+		for i := 0; i < len(response); i += 10 {
+			conn.Write(response[i:min(i+10, len(response))])
+			time.Sleep(2 * time.Millisecond)
+		}
 	}
 	conn.Close()
 }
@@ -241,4 +239,5 @@ func TestFindLastSectionStart(t *testing.T) {
 	assert.Equal(t, 244, findLastSectionStart([]byte(ResponseReqmod2)))
 	assert.Equal(t, 213, findLastSectionStart([]byte(ResponseReqmod3)))
 	assert.Equal(t, 222, findLastSectionStart([]byte(ResponseRespmodPart1)))
+	assert.Equal(t, -1, findLastSectionStart([]byte(EncapsulatedTruncated)))
 }

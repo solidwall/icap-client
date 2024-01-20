@@ -107,7 +107,7 @@ func findLastSectionStart(str []byte) int {
 			if num > maxNum {
 				maxNum = num
 			}
-			break
+			return maxNum
 		}
 		switch st {
 		case Identifier:
@@ -135,7 +135,7 @@ func findLastSectionStart(str []byte) int {
 			return -1
 		}
 	}
-	return maxNum
+	return -1
 }
 
 // Read reads data from server
