@@ -97,9 +97,18 @@ func replaceRequestURIWithActualURL(str *string, uri, url string) {
 	*str = strings.Replace(*str, uri, url, 1)
 }
 
+func trimAllSuffixes(str, suffix string) string {
+	strTrimmed := strings.TrimSuffix(str, suffix)
+	for str != strTrimmed {
+		str = strTrimmed
+		strTrimmed = strings.TrimSuffix(str, suffix)
+	}
+	return str
+}
+
 // addFullBodyInPreviewIndicator adds `; ieof\r\n\r\n` which indicates the entire body fitted in preview
 func addFullBodyInPreviewIndicator(str *string) {
-	*str = strings.Trim(*str, CRLF)
+	*str = trimAllSuffixes(*str, CRLF)
 	if !strings.HasSuffix(*str, "0") {
 		*str += DoubleCRLF
 		return
