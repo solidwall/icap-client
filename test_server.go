@@ -7,18 +7,14 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/egirna/icap"
 )
 
 var (
-	stop = make(chan os.Signal, 1)
 	port = 1344
 )
 
@@ -26,8 +22,7 @@ const (
 	previewBytes      = 24
 	goodFileDetectStr = "GOOD FILE"
 	badFileDetectStr  = "BAD FILE"
-	goodURL           = "http://goodifle.com"
-	badURL            = "http://badfile.com"
+	badHost           = "badfile.com"
 )
 
 func startTestServer() {
@@ -35,8 +30,6 @@ func startTestServer() {
 	icap.HandleFunc("/reqmod", reqmodHandler)
 
 	log.Println("Starting ICAP test server...")
-
-	signal.Notify(stop, syscall.SIGKILL, syscall.SIGINT, syscall.SIGQUIT)
 
 	go func() {
 		if err := icap.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
@@ -48,13 +41,6 @@ func startTestServer() {
 	time.Sleep(5 * time.Millisecond)
 
 	log.Printf("ICAP test server is running on localhost:%d\n...\n", port)
-	<-stop
-
-	log.Println("ICAP test server is shut down!")
-}
-
-func stopTestServer() {
-	stop <- syscall.SIGKILL
 }
 
 func respmodHandler(w icap.ResponseWriter, req *icap.Request) {
@@ -89,10 +75,7 @@ func respmodHandler(w icap.ResponseWriter, req *icap.Request) {
 			return
 		}
 
-		status := 0
-		if strings.Contains(buf.String(), goodFileDetectStr) {
-			status = http.StatusNoContent
-		}
+		status := http.StatusNoContent
 
 		if strings.Contains(buf.String(), badFileDetectStr) {
 			status = http.StatusOK
@@ -126,14 +109,9 @@ func reqmodHandler(w icap.ResponseWriter, req *icap.Request) {
 
 		// log.Println("The preview data: ", string(req.Preview))
 
-		fileURL := req.Request.RequestURI
+		status := http.StatusNoContent
 
-		status := 0
-		if fileURL == goodURL {
-			status = http.StatusNoContent
-		}
-
-		if fileURL == badURL {
+		if req.Request.Host == badHost {
 			status = http.StatusOK
 		}
 

@@ -49,6 +49,7 @@ func setEncapsulatedHeaderValue(icapReqStr *string, httpReqStr, httpRespStr stri
 		if httpReqStr == "" && httpRespStr == "" { // the most common case for OPTIONS method, no Encapsulated body
 			encpVal += "null-body=0"
 		} else {
+			logDebug("Should not have body for OPTIONS request!")
 			encpVal += "opt-body=0" // if there is an Encapsulated body
 		}
 	}
@@ -96,9 +97,22 @@ func replaceRequestURIWithActualURL(str *string, uri, url string) {
 	*str = strings.Replace(*str, uri, url, 1)
 }
 
-// addFullBodyInPreviewIndicator adds 0; ieof\r\n\r\n which indicates the entire body fitted in preview
+func trimAllSuffixes(str, suffix string) string {
+	strTrimmed := strings.TrimSuffix(str, suffix)
+	for str != strTrimmed {
+		str = strTrimmed
+		strTrimmed = strings.TrimSuffix(str, suffix)
+	}
+	return str
+}
+
+// addFullBodyInPreviewIndicator adds `; ieof\r\n\r\n` which indicates the entire body fitted in preview
 func addFullBodyInPreviewIndicator(str *string) {
-	*str = strings.TrimSuffix(*str, DoubleCRLF)
+	*str = trimAllSuffixes(*str, CRLF)
+	if !strings.HasSuffix(*str, "0") {
+		*str += DoubleCRLF
+		return
+	}
 	*str += fullBodyEndIndicatorPreviewMode
 }
 
@@ -158,22 +172,4 @@ func addHexaBodyByteNotations(bodyStr *string) {
 // mergeHeaderAndBody merges the header and body of the http message togather
 func mergeHeaderAndBody(src *string, headerStr, bodyStr string) {
 	*src = headerStr + DoubleCRLF + bodyStr
-}
-
-func chunkBodyByBytes(bdyByte []byte, cl int) []byte {
-
-	newBytes := []byte{}
-
-	for i := 0; i < len(bdyByte); i += cl {
-		end := i + cl
-		if end > len(bdyByte) {
-			end = len(bdyByte)
-		}
-
-		newBytes = append(newBytes, []byte(fmt.Sprintf("%x\r\n", len(bdyByte[i:end]))+string(bdyByte[i:end]))...)
-	}
-
-	newBytes = append(newBytes, []byte(bodyEndIndicator)...)
-
-	return newBytes
 }

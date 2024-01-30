@@ -32,9 +32,4 @@ func TestDriver(t *testing.T) {
 		}
 
 	})
-
-	if testServerRunning() {
-		defer stopTestServer()
-	}
-
 }

@@ -136,7 +136,7 @@ func TestResponse(t *testing.T) {
 					"Date":         []string{"Mon, 10 Jan 2000  09:55:21 GMT"},
 					"Server":       []string{"ICAP-Server-Software/1.0"},
 					"Istag":        []string{"\"W3E4R7U9-L2E4-2\""},
-					"Encapsulated": []string{"req-hdr=0, res-body=222"},
+					"Encapsulated": []string{"res-hdr=0, res-body=222"},
 				},
 				status:       "OK",
 				statusCode:   200,
@@ -146,7 +146,7 @@ func TestResponse(t *testing.T) {
 					"Server: ICAP-Server-Software/1.0\r\n" +
 					"Connection: close\r\n" +
 					"ISTag: \"W3E4R7U9-L2E4-2\"\r\n" +
-					"Encapsulated: req-hdr=0, res-body=222\r\n\r\n",
+					"Encapsulated: res-hdr=0, res-body=222\r\n\r\n",
 				httpRespStr: "HTTP/1.1 200 OK\r\n" +
 					"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 					"Via: 1.0 icap.example.org (ICAP Example RespMod Service 1.1)\r\n" +

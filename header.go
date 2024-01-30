@@ -52,10 +52,11 @@ func (r *Request) SetPreview(maxBytes int) error {
 
 	previewBytes = len(bodyBytes)
 
-	if previewBytes > 0 { // if the preview byte is 0 or less, there is no question of the body fitting insides
-		r.bodyFittedInPreview = true
+	if previewBytes <= 0 { // if the preview byte is 0 or less, there is no question of the body fitting insides
+		return nil
 	}
 
+	r.bodyFittedInPreview = true
 	if previewBytes > maxBytes { // if the preview bytes is greater than what was mentioned by the ICAP Server(did not fit in the body)
 		previewBytes = maxBytes
 		r.bodyFittedInPreview = false
@@ -94,6 +95,7 @@ func (r *Request) SetDefaultRequestHeaders() {
 }
 
 // ExtendHeader extends the current ICAP Request header with a new header
+// NOTE used for tests only
 func (r *Request) ExtendHeader(hdr http.Header) error {
 	for header, values := range hdr {
 
@@ -121,4 +123,12 @@ func (r *Request) ExtendHeader(hdr http.Header) error {
 	}
 
 	return nil
+}
+
+func filterHopByHop(headers http.Header) {
+	for header := range headers {
+		if _, ok := HopByHopHeaders[header]; ok {
+			headers.Del(header)
+		}
+	}
 }

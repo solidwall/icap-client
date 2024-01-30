@@ -114,7 +114,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ := NewRequest(MethodOPTIONS, "icap://localhost:1344/something", nil, nil)
 
-		b, err := DumpRequest(req)
+		b, err := DumpRequest(req, false)
 
 		if err != nil {
 			t.Fatal(err.Error())
@@ -137,7 +137,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ := NewRequest(MethodREQMOD, "icap://localhost:1344/something", httpReq, nil)
 
-		b, err := DumpRequest(req)
+		b, err := DumpRequest(req, true)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -160,7 +160,7 @@ func TestRequest(t *testing.T) {
 
 		req, _ = NewRequest(MethodREQMOD, "icap://localhost:1344/something", httpReq, nil)
 
-		b, err = DumpRequest(req)
+		b, err = DumpRequest(req, true)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -168,6 +168,30 @@ func TestRequest(t *testing.T) {
 		wanted = "REQMOD icap://localhost:1344/something ICAP/1.0\r\n" +
 			"Encapsulated:  req-hdr=0, req-body=130\r\n\r\n" +
 			"POST http://someurl.com HTTP/1.1\r\n" +
+			"Host: someurl.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Content-Length: 11\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n" +
+			"b\r\n" +
+			"Hello World\r\n" +
+			"0\r\n\r\n"
+
+		got = string(b)
+
+		if wanted != got {
+			t.Logf("wanted: \n%s\ngot: \n%s\n", wanted, got)
+			t.Fail()
+		}
+
+		// check how relative URL mode works
+		b, err = DumpRequest(req, false)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		wanted = "REQMOD icap://localhost:1344/something ICAP/1.0\r\n" +
+			"Encapsulated:  req-hdr=0, req-body=113\r\n\r\n" +
+			"POST / HTTP/1.1\r\n" +
 			"Host: someurl.com\r\n" +
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 11\r\n" +
@@ -203,19 +227,18 @@ func TestRequest(t *testing.T) {
 
 		req, _ := NewRequest(MethodRESPMOD, "icap://localhost:1344/something", httpReq, httpResp)
 
-		b, err := DumpRequest(req)
+		b, err := DumpRequest(req, true)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
 
 		wanted := "RESPMOD icap://localhost:1344/something ICAP/1.0\r\n" +
-			"Encapsulated:  req-hdr=0, req-body=130, res-hdr=145, res-body=210\r\n\r\n" +
+			"Encapsulated:  req-hdr=0, res-hdr=130, res-body=195\r\n\r\n" +
 			"POST http://someurl.com HTTP/1.1\r\n" +
 			"Host: someurl.com\r\n" +
 			"User-Agent: Go-http-client/1.1\r\n" +
 			"Content-Length: 11\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n" +
-			"Hello World\r\n\r\n" +
 			"HTTP/1.0 200 OK\r\n" +
 			"Content-Length: 11\r\n" +
 			"Content-Type: plain/text\r\n\r\n" +
@@ -320,6 +343,78 @@ func TestRequest(t *testing.T) {
 
 		}
 
+	})
+	t.Run("HopByHopTest", func(t *testing.T) {
+		httpReq, _ := http.NewRequest(http.MethodPost, "http://someurl.com", nil)
+		httpReq.Header.Add("TE", "compress")
+		httpReq.Header.Add("User-Agent", "test")
+		httpReq.Header.Add("Proxy-Authorization", "Basic YWxhZGRpbjpvcGVuc2VzYW1l")
+		req, _ := NewRequest(MethodREQMOD, "icap://localhost:1344/something", httpReq, nil)
+		if _, ok := req.Header["Proxy-Authorization"]; !ok {
+			t.Fatal("Did not set Proxy-Authorization in ICAP request headers")
+		}
+		dump, _ := DumpRequest(req, true)
+
+		wanted := "REQMOD icap://localhost:1344/something ICAP/1.0\r\n" +
+			"Proxy-Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l\r\n" +
+			"Encapsulated:  req-hdr=0, null-body=115\r\n\r\n" +
+			"POST http://someurl.com HTTP/1.1\r\n" +
+			"Host: someurl.com\r\n" +
+			"User-Agent: test\r\n" +
+			"Content-Length: 0\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n"
+
+		got := string(dump)
+
+		if wanted != got {
+			t.Logf("wanted: \n%s\ngot: \n%s\n", wanted, got)
+			t.Fail()
+		}
+
+		httpResp := &http.Response{
+			Status:     "200 OK",
+			StatusCode: http.StatusOK,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Header: http.Header{
+				"Content-Type":   []string{"plain/text"},
+				"Content-Length": []string{"11"},
+				"Keep-Alive":     []string{"timeout=5, max=1000"},
+				"Connection":     []string{"Keep-Alive"},
+			},
+			ContentLength: 11,
+			Body:          ioutil.NopCloser(strings.NewReader("Hello World")),
+		}
+
+		req, _ = NewRequest(MethodRESPMOD, "icap://localhost:1344/something", httpReq, httpResp)
+
+		dump, err := DumpRequest(req, true)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
+
+		wanted = "RESPMOD icap://localhost:1344/something ICAP/1.0\r\n" +
+			"Proxy-Authorization: Basic YWxhZGRpbjpvcGVuc2VzYW1l\r\n" +
+			"Encapsulated:  req-hdr=0, res-hdr=115, res-body=180\r\n\r\n" +
+			"POST http://someurl.com HTTP/1.1\r\n" +
+			"Host: someurl.com\r\n" +
+			"User-Agent: test\r\n" +
+			"Content-Length: 0\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n" +
+			"HTTP/1.0 200 OK\r\n" +
+			"Content-Length: 11\r\n" +
+			"Content-Type: plain/text\r\n\r\n" +
+			"b\r\n" +
+			"Hello World\r\n" +
+			"0\r\n\r\n"
+
+		got = string(dump)
+
+		if wanted != got {
+			t.Logf("wanted: \n%s\ngot: \n%s\n", wanted, got)
+			t.Fail()
+		}
 	})
 
 	t.Run("SetPreview", func(t *testing.T) {

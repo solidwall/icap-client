@@ -31,7 +31,7 @@ const (
 	CRLF                            = "\r\n"
 	DoubleCRLF                      = "\r\n\r\n"
 	LF                              = "\n"
-	bodyEndIndicator                = CRLF + "0" + CRLF
+	bodyEndIndicator                = CRLF + "0" + DoubleCRLF
 	fullBodyEndIndicatorPreviewMode = "; ieof" + DoubleCRLF
 	icap100ContinueMsg              = "ICAP/1.0 100 Continue" + DoubleCRLF
 	icap204NoModsMsg                = "ICAP/1.0 204 No modifications"
@@ -54,4 +54,20 @@ const (
 	ServiceIDHeader        = "Service-ID"
 	TransferIgnoreHeader   = "Transfer-Ignore"
 	TransferCompleteHeader = "Transfer-Complete"
+
+	// Hop-by-hop headers that need to be sent in ICAP headers section if present in request/response
+	// see https://datatracker.ietf.org/doc/html/rfc3507#section-4.4.2
+	ProxyAuthenticateHeader  = "Proxy-Authenticate"
+	ProxyAuthorizationHeader = "Proxy-Authorization"
 )
+
+var HopByHopHeaders = map[string]bool{
+	"Connection":          true,
+	"Keep-Alive":          true,
+	"Proxy-Authenticate":  true,
+	"Proxy-Authorization": true,
+	"Te":                  true,
+	"Trailers":            true,
+	"Transfer-encoding":   true,
+	"Upgrade":             true,
+}

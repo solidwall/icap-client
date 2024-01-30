@@ -35,16 +35,41 @@ func NewRequest(method, urlStr string, httpReq *http.Request, httpResp *http.Res
 		return nil, err
 	}
 
+	var httpReqClone *http.Request
+	if httpReq != nil {
+		httpReqClone = httpReq.Clone(context.Background())
+		filterHopByHop(httpReqClone.Header)
+	}
+	var httpRespClone *http.Response
+	if httpResp != nil {
+		httpRespCloneObj := *httpResp
+		httpRespCloneObj.Header = httpResp.Header.Clone()
+		httpRespCloneObj.Trailer = nil
+		httpRespCloneObj.TransferEncoding = nil
+		httpRespClone = &httpRespCloneObj
+		filterHopByHop(httpRespClone.Header)
+	}
 	req := &Request{
 		Method:       method,
 		URL:          u,
 		Header:       make(map[string][]string),
-		HTTPRequest:  httpReq,
-		HTTPResponse: httpResp,
+		HTTPRequest:  httpReqClone,
+		HTTPResponse: httpRespClone,
 	}
 
 	if err := req.Validate(); err != nil {
 		return nil, err
+	}
+
+	if httpReq != nil {
+		if value, ok := httpReq.Header[ProxyAuthorizationHeader]; ok {
+			req.Header[ProxyAuthorizationHeader] = value
+		}
+	}
+	if httpResp != nil {
+		if value, ok := httpResp.Header[ProxyAuthenticateHeader]; ok {
+			req.Header[ProxyAuthenticateHeader] = value
+		}
 	}
 
 	return req, nil
@@ -52,7 +77,7 @@ func NewRequest(method, urlStr string, httpReq *http.Request, httpResp *http.Res
 
 // DumpRequest returns the given request in its ICAP/1.x wire
 // representation.
-func DumpRequest(req *Request) ([]byte, error) {
+func DumpRequest(req *Request, setAbsoluteUrl bool) ([]byte, error) {
 
 	// Making the ICAP message block
 
@@ -77,8 +102,19 @@ func DumpRequest(req *Request) ([]byte, error) {
 			return nil, err
 		}
 
-		httpReqStr += string(b)
-		replaceRequestURIWithActualURL(&httpReqStr, req.HTTPRequest.URL.EscapedPath(), req.HTTPRequest.URL.String())
+		httpReqStr = string(b)
+		if setAbsoluteUrl {
+			partsHttp := strings.SplitN(httpReqStr, "\n", 2)
+			if len(partsHttp) < 2 {
+				return []byte{}, fmt.Errorf("Failed to parse dumped HTTPRequest: %s", httpReqStr)
+			}
+			headerLineParts := strings.Split(partsHttp[0], " ")
+			if len(headerLineParts) != 3 {
+				return []byte{}, fmt.Errorf("Incorrect HTTP header line: %s", partsHttp[0])
+			}
+			newHeaderLine := headerLineParts[0] + " " + req.HTTPRequest.URL.String() + " " + headerLineParts[2]
+			httpReqStr = newHeaderLine + "\n" + partsHttp[1]
+		}
 
 		if req.Method == MethodREQMOD {
 			if req.previewSet {
@@ -93,11 +129,17 @@ func DumpRequest(req *Request) ([]byte, error) {
 				}
 			}
 
+		} else { // In case of RESPMOD we send only header (see https://datatracker.ietf.org/doc/html/rfc3507#section-4.9.1)
+			headerStr, _, ok := splitBodyAndHeader(httpReqStr)
+			if ok {
+				httpReqStr = headerStr
+			}
 		}
 
 		if httpReqStr != "" { // if the HTTP Request message block doesn't end with a \r\n\r\n, then going to add one by force for better calculation of byte offsets
 			for !strings.HasSuffix(httpReqStr, DoubleCRLF) {
-				httpReqStr += CRLF
+				httpReqStr = trimAllSuffixes(httpReqStr, CRLF)
+				httpReqStr += DoubleCRLF
 			}
 		}
 
@@ -128,7 +170,8 @@ func DumpRequest(req *Request) ([]byte, error) {
 		}
 
 		if httpRespStr != "" && !strings.HasSuffix(httpRespStr, DoubleCRLF) { // if the HTTP Response message block doesn't end with a \r\n\r\n, then going to add one by force for better calculation of byte offsets
-			httpRespStr += CRLF
+			httpRespStr = trimAllSuffixes(httpRespStr, CRLF)
+			httpRespStr += DoubleCRLF
 		}
 
 	}
