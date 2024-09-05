@@ -23,7 +23,8 @@ type Response struct {
 func ReadResponse(b *bufio.Reader) (*Response, error) {
 
 	resp := &Response{
-		Header: make(map[string][]string),
+		Header:       make(map[string][]string),
+		PreviewBytes: -1,
 	}
 
 	scheme := ""

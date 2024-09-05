@@ -2,24 +2,58 @@ package icapclient
 
 import (
 	"bufio"
+	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 )
 
+type testSample struct {
+	headers      http.Header
+	status       string
+	statusCode   int
+	previewBytes int
+
+	respStr     string
+	httpReqStr  string
+	httpRespStr string
+}
+
+func checkResponseFields(sample *testSample, t *testing.T) *Response {
+	resp, err := ReadResponse(bufio.NewReader(strings.NewReader(
+		sample.respStr + sample.httpReqStr + sample.httpRespStr)))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if resp.StatusCode != sample.statusCode {
+		t.Logf("Wanted ICAP status code: %d , got: %d", sample.statusCode, resp.StatusCode)
+		t.Fail()
+	}
+	if resp.Status != sample.status {
+		t.Logf("Wanted ICAP status: %s , got: %s", sample.status, resp.Status)
+		t.Fail()
+	}
+	if resp.PreviewBytes != sample.previewBytes {
+		t.Logf("Wanted preview bytes: %d, got: %d", sample.previewBytes, resp.PreviewBytes)
+		t.Fail()
+	}
+
+	fmt.Println(resp.Header)
+	for k, v := range sample.headers {
+		if val, exists := resp.Header[k]; !exists || !reflect.DeepEqual(val, v) {
+			t.Logf("Wanted Header: %s with value: %v, got: %v", k, v, val)
+			t.Fail()
+			break
+		}
+	}
+	return resp
+}
+
 func TestResponse(t *testing.T) {
 
 	t.Run("ReadResponse REQMOD", func(t *testing.T) { // FIXME: headers and content request aren't being tested properly
-
-		type testSample struct {
-			headers      http.Header
-			status       string
-			statusCode   int
-			previewBytes int
-			respStr      string
-			httpReqStr   string
-		}
 
 		sampleTable := []testSample{
 			{
@@ -31,7 +65,7 @@ func TestResponse(t *testing.T) {
 				},
 				status:       "OK",
 				statusCode:   200,
-				previewBytes: 0,
+				previewBytes: -1,
 				respStr: "ICAP/1.0 200 OK\r\n" +
 					"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 					"Server: ICAP-Server-Software/1.0\r\n" +
@@ -54,7 +88,7 @@ func TestResponse(t *testing.T) {
 				},
 				status:       "OK",
 				statusCode:   200,
-				previewBytes: 0,
+				previewBytes: -1,
 				respStr: "ICAP/1.0 200 OK\r\n" +
 					"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 					"Server: ICAP-Server-Software/1.0\r\n" +
@@ -75,31 +109,7 @@ func TestResponse(t *testing.T) {
 		}
 
 		for _, sample := range sampleTable {
-			resp, err := ReadResponse(bufio.NewReader(strings.NewReader(sample.respStr + sample.httpReqStr)))
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-
-			if resp.StatusCode != sample.statusCode {
-				t.Logf("Wanted ICAP status code: %d , got: %d", sample.statusCode, resp.StatusCode)
-				t.Fail()
-			}
-			if resp.Status != sample.status {
-				t.Logf("Wanted ICAP status: %s , got: %s", sample.status, resp.Status)
-				t.Fail()
-			}
-			if resp.PreviewBytes != sample.previewBytes {
-				t.Logf("Wanted preview bytes: %d, got: %d", sample.previewBytes, resp.PreviewBytes)
-				t.Fail()
-			}
-
-			for k, v := range sample.headers {
-				if val, exists := resp.Header[k]; !exists || !reflect.DeepEqual(val, v) {
-					t.Logf("Wanted Header: %s with value: %v, got: %v", k, v, val)
-					t.Fail()
-					break
-				}
-			}
+			resp := checkResponseFields(&sample, t)
 			if resp.ContentRequest == nil {
 				t.Log("ContentRequest is nil")
 				t.Fail()
@@ -120,15 +130,6 @@ func TestResponse(t *testing.T) {
 	})
 
 	t.Run("ReadResponse RESPMOD", func(t *testing.T) {
-		type testSample struct {
-			headers      http.Header
-			status       string
-			statusCode   int
-			previewBytes int
-			respStr      string
-			httpRespStr  string
-			httpReqStr   string
-		}
 
 		sampleTable := []testSample{
 			{
@@ -140,7 +141,7 @@ func TestResponse(t *testing.T) {
 				},
 				status:       "OK",
 				statusCode:   200,
-				previewBytes: 0,
+				previewBytes: -1,
 				respStr: "ICAP/1.0 200 OK\r\n" +
 					"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
 					"Server: ICAP-Server-Software/1.0\r\n" +
@@ -161,31 +162,8 @@ func TestResponse(t *testing.T) {
 		}
 
 		for _, sample := range sampleTable {
-			resp, err := ReadResponse(bufio.NewReader(strings.NewReader(sample.respStr + sample.httpRespStr)))
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-
-			if resp.StatusCode != sample.statusCode {
-				t.Logf("Wanted ICAP status code: %d , got: %d", sample.statusCode, resp.StatusCode)
-				t.Fail()
-			}
-			if resp.Status != sample.status {
-				t.Logf("Wanted ICAP status: %s , got: %s", sample.status, resp.Status)
-				t.Fail()
-			}
-			if resp.PreviewBytes != sample.previewBytes {
-				t.Logf("Wanted preview bytes: %d, got: %d", sample.previewBytes, resp.PreviewBytes)
-				t.Fail()
-			}
-
-			for k, v := range sample.headers {
-				if val, exists := resp.Header[k]; !exists || !reflect.DeepEqual(val, v) {
-					t.Logf("Wanted Header: %s with value: %v, got: %v", k, v, val)
-					t.Fail()
-					break
-				}
-			}
+			resp := checkResponseFields(&sample, t)
+			fmt.Println(resp)
 			if resp.ContentResponse == nil {
 				t.Log("ContentResponse is nil")
 				t.Fail()
@@ -203,6 +181,65 @@ func TestResponse(t *testing.T) {
 
 		}
 
+	})
+	t.Run("ReadResponse OPTIONS", func(t *testing.T) {
+		sampleTable := []testSample{
+			{
+				headers: http.Header{
+					"Date":            []string{"Mon, 10 Jan 2000  09:55:21 GMT"},
+					"Server":          []string{"ICAP-Server-Software/1.0"},
+					"Istag":           []string{"\"W3E4R7U9-L2E4-2\""},
+					"Encapsulated":    []string{"null-body=0"},
+					"Options-Ttl":     []string{"1500"},
+					"Service":         []string{"Kaspersky Scan Engine"},
+					"Methods":         []string{"REQMOD"},
+					"Max-Connections": []string{"100"},
+					"Service-Id":      []string{"kl_icap_service"},
+					"Allow":           []string{"204"},
+					"X-Response-Info": []string{"Options"},
+				},
+				status:       "OK",
+				statusCode:   200,
+				previewBytes: -1,
+				respStr: "ICAP/1.0 200 OK\r\n" +
+					"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
+					"Server: ICAP-Server-Software/1.0\r\n" +
+					"Connection: close\r\n" +
+					"ISTag: \"W3E4R7U9-L2E4-2\"\r\n" +
+					"Service: Kaspersky Scan Engine\r\n" +
+					"Methods: REQMOD\r\n" +
+					"Max-Connections: 100\r\n" +
+					"Options-TTL: 1500\r\n" +
+					"Service-ID: kl_icap_service\r\n" +
+					"Allow: 204\r\n" +
+					"X-Response-Info: Options\r\n" +
+					"Encapsulated: null-body=0\r\n\r\n",
+			},
+			{
+				headers: http.Header{
+					"Date":       []string{"Mon, 10 Jan 2000  09:55:21 GMT"},
+					"Server":     []string{"ICAP-Server-Software/1.0"},
+					"Istag":      []string{"\"W3E4R7U9-L2E4-2\""},
+					"Methods":    []string{"REQMOD, RESPMOD"},
+					"Service-Id": []string{"kl_icap_service"},
+					"Allow":      []string{"204"},
+				},
+				status:       "OK",
+				statusCode:   200,
+				previewBytes: 305,
+				respStr: "ICAP/1.0 200 OK\r\n" +
+					"Date: Mon, 10 Jan 2000  09:55:21 GMT\r\n" +
+					"Server: ICAP-Server-Software/1.0\r\n" +
+					"Preview: 305\r\n" +
+					"ISTag: \"W3E4R7U9-L2E4-2\"\r\n" +
+					"Methods: REQMOD, RESPMOD\r\n" +
+					"Service-ID: kl_icap_service\r\n" +
+					"Allow: 204\r\n",
+			},
+		}
+		for _, sample := range sampleTable {
+			checkResponseFields(&sample, t)
+		}
 	})
 
 }
