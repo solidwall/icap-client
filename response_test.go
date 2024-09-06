@@ -2,7 +2,6 @@ package icapclient
 
 import (
 	"bufio"
-	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
@@ -40,7 +39,6 @@ func checkResponseFields(sample *testSample, t *testing.T) *Response {
 		t.Fail()
 	}
 
-	fmt.Println(resp.Header)
 	for k, v := range sample.headers {
 		if val, exists := resp.Header[k]; !exists || !reflect.DeepEqual(val, v) {
 			t.Logf("Wanted Header: %s with value: %v, got: %v", k, v, val)
@@ -163,7 +161,6 @@ func TestResponse(t *testing.T) {
 
 		for _, sample := range sampleTable {
 			resp := checkResponseFields(&sample, t)
-			fmt.Println(resp)
 			if resp.ContentResponse == nil {
 				t.Log("ContentResponse is nil")
 				t.Fail()
