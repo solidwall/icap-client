@@ -10,6 +10,10 @@ import (
 
 // SetPreview sets the preview bytes in the icap header
 func (r *Request) SetPreview(maxBytes int) error {
+	// do not set preview for maxBytes < 0 (-1 value is used to indicate ICAP server did not set Preview header)
+	if maxBytes < 0 {
+		return nil
+	}
 
 	bodyBytes := []byte{}
 
